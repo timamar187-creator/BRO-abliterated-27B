@@ -1,6 +1,6 @@
 #!/bin/zsh
-# install-bro-27b.zsh — Download and install B.R.O v17 27B to external disk
-# Target: /Volumes/My Mac 2TB/models/bro-27b-v17
+# install-bro-27b.zsh — Download and install B.R.O v17 27B locally
+# Default target: $HOME/models/bro-27b-v17 (override with BRO_DIR=/path)
 # Source: GitHub Releases timamar187-creator/BRO-abliterated-27B v1.0.0
 #
 # NOTE: GLM-5.3 is a 753B MoE model — there is no official 27B dense variant.
@@ -9,20 +9,17 @@
 
 set -euo pipefail
 
-EXTERNAL_DISK="/Volumes/My Mac 2TB"
-TARGET_DIR="$EXTERNAL_DISK/models/bro-27b-v17"
-GGUF_DIR="$EXTERNAL_DISK/models"
+TARGET_ROOT="${BRO_DIR:-$HOME/models}"
+TARGET_DIR="$TARGET_ROOT/bro-27b-v17"
+GGUF_DIR="$TARGET_ROOT"
 RELEASE_BASE="https://github.com/timamar187-creator/BRO-abliterated-27B/releases/download/v1.0.0"
 
 # --- Pre-flight ---
-if [[ ! -d "$EXTERNAL_DISK" ]]; then
-    echo "ERROR: External disk not mounted at $EXTERNAL_DISK" >&2
-    exit 1
-fi
+mkdir -p "$TARGET_ROOT"
 
-FREE_GB=$(df -g "$EXTERNAL_DISK" | tail -1 | awk '{print $4}')
+FREE_GB=$(df -g "$TARGET_ROOT" | tail -1 | awk '{print $4}')
 if [[ "$FREE_GB" -lt 20 ]]; then
-    echo "ERROR: Insufficient space. Need ~20GB, have ${FREE_GB}GB" >&2
+    echo "ERROR: Insufficient space under $TARGET_ROOT. Need ~20GB, have ${FREE_GB}GB" >&2
     exit 1
 fi
 
@@ -34,14 +31,25 @@ echo ""
 
 mkdir -p "$TARGET_DIR" "$GGUF_DIR"
 
-# --- Step 1: Download v17 LoRA adapter from GitHub Release ---
+# --- Step 1: Download v17 LoRA adapter from GitHub Release (2GB parts) ---
 if [[ ! -f "$TARGET_DIR/adapter_model.safetensors" ]]; then
-    echo "[1/4] Downloading v17 LoRA adapter from GitHub Release..."
+    echo "[1/4] Downloading v17 LoRA adapter parts from GitHub Release..."
     ARCHIVE="$TARGET_DIR/v17-checkpoint.tar.gz"
-    curl -L --progress-bar -o "$ARCHIVE" \
-        "$RELEASE_BASE/v17-checkpoint.tar.gz"
+    PARTS=(v17-part-aa.bin v17-part-ab.bin v17-part-ac.bin v17-part-ad.bin v17-part-ae.bin v17-part-af.bin v17-part-ag.bin)
+    for PART in "${PARTS[@]}"; do
+        if [[ ! -f "$TARGET_DIR/$PART" ]]; then
+            curl -L --progress-bar -o "$TARGET_DIR/$PART" "$RELEASE_BASE/$PART"
+        else
+            echo "  $PART already present, skipping"
+        fi
+    done
+    echo "  Verifying part checksums..."
+    curl -fsSL -o "$TARGET_DIR/v17-parts-sha256.txt" "$RELEASE_BASE/v17-parts-sha256.txt"
+    (cd "$TARGET_DIR" && shasum -a 256 -c v17-parts-sha256.txt)
+    echo "  Reassembling archive..."
+    cat "${PARTS[@]/#/$TARGET_DIR/}" > "$ARCHIVE"
     tar -xzf "$ARCHIVE" -C "$TARGET_DIR"
-    rm "$ARCHIVE"
+    rm -f "$ARCHIVE" "${PARTS[@]/#/$TARGET_DIR/}" "$TARGET_DIR/v17-parts-sha256.txt"
 else
     echo "[1/4] LoRA adapter already present, skipping download"
 fi
@@ -97,7 +105,7 @@ echo "[4/4] Installation summary"
 if [[ "$VERIFIED" == "true" ]]; then
     echo ""
     echo "=== Installation Complete ==="
-    echo "Files installed to: $EXTERNAL_DISK/models/"
+    echo "Files installed to: $TARGET_ROOT"
     ls -lh "$GGUF_DIR"/*.gguf 2>/dev/null || true
     ls -lh "$TARGET_DIR"/ 2>/dev/null || true
     echo ""
