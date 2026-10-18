@@ -1,4 +1,4 @@
-# B.RO.0.1-abliterated-27B
+# B.R.O-abliterated-27B
 
 Local install assets for the B.R.O. model (v17).
 
