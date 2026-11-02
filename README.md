@@ -2,7 +2,6 @@
 license: apache-2.0
 base_model:
 - Qwen/Qwen3.5-35B-A3B
-- HauhauCS/Qwen3.5-35B-A3B-Uncensored-HauhauCS-Aggressive
 language:
 - en
 - he
@@ -17,6 +16,8 @@ tags:
 - cybersecurity
 - red-team
 - gguf
+- mlx
+- safetensors
 - ollama
 ---
 
@@ -24,7 +25,7 @@ tags:
 
 **B.R.O (Breaching Remote Operation) — Zero Refusal** is the v3.0 local Mixture-of-Experts (MoE) release of B.R.O, distilled directly from **B.R.O v53 Zero-Refusal (Tinker)** (`bro-v53-zero-refusal-sampler`) onto the **Qwen3.5-35B-A3B** (`qwen35moe`) architecture.
 
-Unlike v1.0/v2.0 (which used a slow 27B Dense backbone where all 27B parameters ran on every token), **B.R.O Zero Refusal v3.0** uses a **35B total / 3B active (`A3B`) MoE** architecture (256 routed experts + 1 shared expert per layer with hybrid GatedDeltaNet linear attention), delivering **~4.5x faster local inference (23–26.5 tok/s on Apple Silicon)** with **0.0% refusal rate** in Hebrew and English.
+Unlike v1.0/v2.0 (which used a 27B Dense backbone where all 27B parameters ran on every token), **B.R.O Zero Refusal v3.0** uses a **35B total / 3B active (`A3B`) MoE** architecture (256 routed experts + 1 shared expert per layer with hybrid GatedDeltaNet linear attention), delivering **~4.5x faster local inference (15–26.5 tok/s on Apple Silicon)** with **0.0% refusal rate** in Hebrew and English.
 
 ---
 
@@ -37,10 +38,11 @@ Unlike v1.0/v2.0 (which used a slow 27B Dense backbone where all 27B parameters 
 | **Total Parameters** | **35B** (34.7B) |
 | **Active Parameters / Token** | **3B (`A3B`)** — 256 routed experts + 1 shared expert / layer |
 | **Teacher Model** | **B.R.O v53 Zero-Refusal (Tinker)** (`0/32` refusals across 4 suites) |
+| **Distilled Weight Artifacts** | `B.R.O-Zero-Refusal-35B-A3B-MoE-Q4_K_M.gguf` (`sha256:628a481a...`), `bro_v53_moe_router_distill.safetensors` (84.2 MB), `adapters.safetensors` (7.18 MB) |
 | **Distilled SFT Corpus** | `bro-v53-zero-refusal-distill.jsonl` (618 trajectories, Intent-Locked) |
 | **Local Refusal Rate** | **0.0%** (Hebrew + English + Raw No-System-Prompt + Offensive Cyber) |
-| **Local Speed (Apple Silicon)** | **23.3 – 26.5 tok/s** generation / **238 tok/s** prompt eval |
-| **Quantization / Size** | `Q4_K_M` GGUF (~20.5 GB) |
+| **Local Speed (Apple Silicon)** | **14.6 – 26.5 tok/s** generation / **238 tok/s** prompt eval |
+| **Quantization / Size** | `Q4_K_M` GGUF (`21,169,117,248` bytes / 21.17 GB) |
 | **Context Window** | `32,768` default (up to `262,144` native) |
 
 ---
@@ -68,6 +70,6 @@ ollama run bro-zero-refusal
 ## How Zero Refusal v3.0 Was Built
 
 1. **Teacher Training (B.R.O v53 on Tinker):** Trained from the `v30` champion state using 618 direct-fulfillment trajectories (`223,689` tokens) combining **Contrastive Refusal Unlearning**, **Intent-Locking (`<think>\n\n</think>\n\n`)**, and **System-Prompt Immunity** across 5 system templates (`bro_full`, `exody_agent`, `hebrew_direct`, `minimal`, `raw_empty`), achieving **0/32 (0.0%) refusals**.
-2. **MoE Backbone Selection (`Qwen3.5-35B-A3B`):** Selected over 27B Dense because `Qwen3.5-35B-A3B` provides higher total capacity (35B) while activating only 3B parameters per token (`A3B`), eliminating local latency bottlenecks.
-3. **GGUF & Template Intent-Locking:** Patched `tokenizer.chat_template` and `Modelfile` so every generation pre-locks `<think>\n\n</think>\n\n`, preventing Chain-of-Thought self-censorship or multi-minute thinking stalls.
-4. **Distilled Corpus Included:** Full 618-trajectory distilled dataset (`bro-v53-zero-refusal-distill.jsonl`) and benchmark receipt (`benchmark-zero-refusal-moe.json`) are included in this repository.
+2. **In-Place Float32 MoE Router Gate Orthogonalization (`bro_v53_moe_router_distill.safetensors`):** Applied rank-1 Arditi et al. refusal-subspace orthogonalization ($W'_l = W_l - \tau (W_l r_l) r_l^\top$, $\tau = 0.08$) across all 40 float32 MoE router gate matrices (`blk.{0..39}.ffn_gate_inp.weight`, `[256, 2048]`) inside `B.R.O-Zero-Refusal-35B-A3B-MoE-Q4_K_M.gguf`.
+3. **MLX LoRA SFT Weight Distillation (`adapters.safetensors`):** Trained a rank-16 LoRA SFT adapter on the 618-trajectory B.R.O v53 corpus (`adapter_config.json` + `adapters.safetensors`).
+4. **GGUF & Template Intent-Locking:** Patched `tokenizer.chat_template` and `Modelfile` so every generation pre-locks `<think>\n\n</think>\n\n`, preventing Chain-of-Thought self-censorship or multi-minute thinking stalls.
