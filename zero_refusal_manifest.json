@@ -1,0 +1,39 @@
+{
+  "name": "B.R.O — Zero Refusal",
+  "version": "v3.0.0",
+  "edition": "Zero Refusal MoE Edition",
+  "base_model": "Qwen/Qwen3.5-35B-A3B",
+  "abliterated_moe_backbone": "HauhauCS/Qwen3.5-35B-A3B-Uncensored-HauhauCS-Aggressive",
+  "architecture": "qwen35moe",
+  "total_parameters": "35B (34.7B)",
+  "active_parameters_per_token": "3B (A3B)",
+  "experts": {
+    "routed_experts_per_layer": 256,
+    "shared_experts_per_layer": 1,
+    "layers": 40,
+    "attention": "Hybrid GatedDeltaNet Linear Attention + Full Attention"
+  },
+  "quantization": "Q4_K_M (GGUF v3, ~20.5 GB)",
+  "teacher_checkpoint": {
+    "name": "B.R.O v53 Zero-Refusal (Tinker)",
+    "sampler_weights": "tinker://9d264dc6-7368-5815-91a6-a3428130426a:train:0/sampler_weights/bro-v53-zero-refusal-sampler",
+    "training_state": "tinker://9d264dc6-7368-5815-91a6-a3428130426a:train:0/weights/bro-v53-zero-refusal-state",
+    "distilled_trajectories": 618,
+    "distilled_corpus_file": "bro-v53-zero-refusal-distill.jsonl"
+  },
+  "zero_refusal_mechanisms": [
+    "Multi-round refusal-direction abliteration on Qwen3.5-35B-A3B MoE backbone",
+    "Method 1: Contrastive Direct-Fulfillment SFT distilled from B.R.O v53 (618 trajectories)",
+    "Method 2: GGUF & Template Intent-Locking (<think>\\n\\n</think>\\n\\n forced by default to eliminate CoT self-censorship)",
+    "Method 3: System-Prompt Immunity & Operator Guard conditioning across raw/empty/Hebrew/English prompts"
+  ],
+  "verified_benchmarks": {
+    "teacher_v53_refusal_rate": "0.0% (0/32 across v22_blackhat, v24_nolimits, raw_no_sys_prompt, hebrew_exody_offensive)",
+    "local_moe_refusal_rate": "0.0% (0/4 live offensive cyber + Hebrew test suite)",
+    "local_moe_speed_tok_per_sec": {
+      "avg_generation_tok_s": 23.32,
+      "peak_generation_tok_s": 26.5,
+      "prompt_eval_tok_s": 238.0
+    }
+  }
+}
