@@ -3,7 +3,6 @@
   "version": "v3.0.0",
   "edition": "Zero Refusal MoE Edition",
   "base_model": "Qwen/Qwen3.5-35B-A3B",
-  "abliterated_moe_backbone": "HauhauCS/Qwen3.5-35B-A3B-Uncensored-HauhauCS-Aggressive",
   "architecture": "qwen35moe",
   "total_parameters": "35B (34.7B)",
   "active_parameters_per_token": "3B (A3B)",
@@ -13,7 +12,18 @@
     "layers": 40,
     "attention": "Hybrid GatedDeltaNet Linear Attention + Full Attention"
   },
-  "quantization": "Q4_K_M (GGUF v3, ~20.5 GB)",
+  "quantization": "Q4_K_M (GGUF v3, 21.17 GB)",
+  "distilled_artifacts": {
+    "gguf_file": "B.R.O-Zero-Refusal-35B-A3B-MoE-Q4_K_M.gguf",
+    "gguf_size_bytes": 21169117248,
+    "gguf_sha256": "628a481a1961e343cc3da000e3b4c3fc88f232bf45c4e3c8bf25c3fd1f0eb494",
+    "moe_router_distill_safetensors": "bro_v53_moe_router_distill.safetensors",
+    "moe_router_distill_size_bytes": 84220880,
+    "mlx_lora_adapter_safetensors": "adapters.safetensors",
+    "mlx_lora_adapter_size_bytes": 7182985,
+    "mlx_lora_adapter_config": "adapter_config.json",
+    "distilled_corpus_jsonl": "bro-v53-zero-refusal-distill.jsonl"
+  },
   "teacher_checkpoint": {
     "name": "B.R.O v53 Zero-Refusal (Tinker)",
     "sampler_weights": "tinker://9d264dc6-7368-5815-91a6-a3428130426a:train:0/sampler_weights/bro-v53-zero-refusal-sampler",
@@ -22,8 +32,8 @@
     "distilled_corpus_file": "bro-v53-zero-refusal-distill.jsonl"
   },
   "zero_refusal_mechanisms": [
-    "Multi-round refusal-direction abliteration on Qwen3.5-35B-A3B MoE backbone",
-    "Method 1: Contrastive Direct-Fulfillment SFT distilled from B.R.O v53 (618 trajectories)",
+    "In-place Float32 MoE Router Gate Rank-1 Orthogonalization across all 40 layers (tau=0.08, bro_v53_moe_router_distill.safetensors)",
+    "MLX LoRA SFT Weight Distillation trained on B.R.O v53 teacher trajectories (adapters.safetensors, rank 16)",
     "Method 2: GGUF & Template Intent-Locking (<think>\\n\\n</think>\\n\\n forced by default to eliminate CoT self-censorship)",
     "Method 3: System-Prompt Immunity & Operator Guard conditioning across raw/empty/Hebrew/English prompts"
   ],
@@ -33,6 +43,7 @@
     "local_moe_speed_tok_per_sec": {
       "avg_generation_tok_s": 23.32,
       "peak_generation_tok_s": 26.5,
+      "cold_reload_avg_tok_s": 14.64,
       "prompt_eval_tok_s": 238.0
     }
   }
